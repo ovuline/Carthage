@@ -487,7 +487,8 @@ public final class ProjectDependencyRetriever: DependencyRetrieverProtocol {
                         swiftVersion: localSwiftVersion,
                         eventObserver: self.projectEventsObserver,
                         lockTimeout: self.lockTimeout,
-                        netrc: self.netrc
+                        netrc: self.netrc,
+                        binaryProject: nil
                         )
                         .flatMap(.concat) { urlLock -> SignalProducer<Bool, CarthageError> in
                             lock = urlLock
@@ -733,7 +734,7 @@ public final class ProjectDependencyRetriever: DependencyRetrieverProtocol {
     private func downloadBinary(dependency: Dependency, pinnedVersion: PinnedVersion, binaryProject: BinaryProject, configuration: String, resolvedDependencySet: Set<PinnedDependency>, strictMatch: Bool, platforms: Set<Platform>, swiftVersion: PinnedVersion) -> SignalProducer<URLLock, CarthageError> {
         let binariesCache: BinariesCache = BinaryProjectCache(binaryProjectDefinitions: [dependency: binaryProject])
         let resolvedDependenciesHash = Frameworks.hashForResolvedDependencySet(resolvedDependencySet)
-        return binariesCache.matchingBinary(for: dependency, pinnedVersion: pinnedVersion, configuration: configuration, resolvedDependenciesHash: resolvedDependenciesHash, strictMatch: strictMatch, platforms: platforms, swiftVersion: swiftVersion, eventObserver: self.projectEventsObserver, lockTimeout: self.lockTimeout, netrc: self.netrc)
+        return binariesCache.matchingBinary(for: dependency, pinnedVersion: pinnedVersion, configuration: configuration, resolvedDependenciesHash: resolvedDependenciesHash, strictMatch: strictMatch, platforms: platforms, swiftVersion: swiftVersion, eventObserver: self.projectEventsObserver, lockTimeout: self.lockTimeout, netrc: self.netrc, binaryProject: binaryProject)
             .attemptMap({ urlLock -> Result<URLLock, CarthageError> in
                 if let lock = urlLock {
                     return .success(lock)

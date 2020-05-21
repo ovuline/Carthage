@@ -8,13 +8,13 @@ import XCDBLD
 /// Cache for binary builds
 protocol BinariesCache {
 
-    func matchingBinary(for dependency: Dependency, pinnedVersion: PinnedVersion, configuration: String, resolvedDependenciesHash: String, strictMatch: Bool, platforms: Set<Platform>, swiftVersion: PinnedVersion, eventObserver: Signal<ProjectEvent, NoError>.Observer?, lockTimeout: Int?, netrc: Netrc?) -> SignalProducer<URLLock?, CarthageError>
+    func matchingBinary(for dependency: Dependency, pinnedVersion: PinnedVersion, configuration: String, resolvedDependenciesHash: String, strictMatch: Bool, platforms: Set<Platform>, swiftVersion: PinnedVersion, eventObserver: Signal<ProjectEvent, NoError>.Observer?, lockTimeout: Int?, netrc: Netrc?, binaryProject: BinaryProject?) -> SignalProducer<URLLock?, CarthageError>
 
 }
 
 extension BinariesCache {
 
-    static func fileURL(for dependency: Dependency, version: PinnedVersion, configuration: String, resolvedDependenciesHash: String?, swiftVersion: PinnedVersion) -> URL {
+    static func fileURL(for dependency: Dependency, version: PinnedVersion, configuration: String, resolvedDependenciesHash: String?, swiftVersion: PinnedVersion, binaryProject: BinaryProject? = nil) -> URL {
         // Try to parse the semantic version out of the Swift version string
         let cacheBaseURL = Constants.Dependency.assetsURL
         let swiftVersionString: String = swiftVersion.description
@@ -23,6 +23,9 @@ extension BinariesCache {
         let fileName: String
         if let resolvedDependenciesHash = resolvedDependenciesHash {
             fileName = "\(dependency.name)-\(resolvedDependenciesHash).framework.zip"
+        } else if let binaryProject = binaryProject,
+            let sourceURL = binaryProject.binaryURL(for: version, configuration: configuration, swiftVersion: swiftVersion) {
+            fileName = sourceURL.lastPathComponent
         } else {
             fileName = "\(dependency.name).framework.zip"
         }
@@ -87,9 +90,9 @@ class AbstractBinariesCache: BinariesCache {
             .first()!.value ?? false
     }
 
-    func matchingBinary(for dependency: Dependency, pinnedVersion: PinnedVersion, configuration: String, resolvedDependenciesHash: String, strictMatch: Bool, platforms: Set<Platform>, swiftVersion: PinnedVersion, eventObserver: Signal<ProjectEvent, NoError>.Observer?, lockTimeout: Int?, netrc: Netrc?) -> SignalProducer<URLLock?, CarthageError> {
+    func matchingBinary(for dependency: Dependency, pinnedVersion: PinnedVersion, configuration: String, resolvedDependenciesHash: String, strictMatch: Bool, platforms: Set<Platform>, swiftVersion: PinnedVersion, eventObserver: Signal<ProjectEvent, NoError>.Observer?, lockTimeout: Int?, netrc: Netrc?, binaryProject: BinaryProject? = nil) -> SignalProducer<URLLock?, CarthageError> {
 
-        let fileURL = AbstractBinariesCache.fileURL(for: dependency, version: pinnedVersion, configuration: configuration, resolvedDependenciesHash: strictMatch ? resolvedDependenciesHash : nil, swiftVersion: swiftVersion)
+        let fileURL = AbstractBinariesCache.fileURL(for: dependency, version: pinnedVersion, configuration: configuration, resolvedDependenciesHash: strictMatch ? resolvedDependenciesHash : nil, swiftVersion: swiftVersion, binaryProject: binaryProject)
 
         return URLLock.lockReactive(url: fileURL, timeout: lockTimeout)
             .flatMap(.merge) { (urlLock: URLLock) -> SignalProducer<URLLock?, CarthageError> in
