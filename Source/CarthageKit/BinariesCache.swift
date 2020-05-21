@@ -24,6 +24,32 @@ extension BinariesCache {
         if let resolvedDependenciesHash = resolvedDependenciesHash {
             fileName = "\(dependency.name)-\(resolvedDependenciesHash).framework.zip"
         } else if let binaryProject = binaryProject,
+            /*
+             This solves an issue when trying to install some binary dependencies. Say you have a CarthageSpec:
+             ```
+             {
+                 "7.58.0": "https://dl.google.com/dl/cpdc/0c10c95bd100a047/Google-Mobile-Ads-SDK-7.58.0.tar.gz"
+             }
+             ```
+             and a Cartfile:
+             ```
+             binary "CarthageSpecs/GoogleMobileAdsSDK.json" == 7.58.0
+             ```
+
+             Before this change, calling: `update --platform ios GoogleMobileAdsSDK ` would result in the following
+             error:
+
+             ```
+             error: A shell task (/usr/bin/env unzip -uo -qq -d <destination/path> <source/path>
+               End-of-central-directory signature not found.  Either this file is not
+               a zipfile, or it constitutes one disk of a multi-part archive.  In the
+               latter case the central directory and zipfile comment will be found on
+               the last disk(s) of this archive.
+             ```
+
+             This is because before this change, the binary file in question was saved as GoogleMobileAdsSDK.framework.zip
+             in ~/Library/Caches/org.carthage.CarthageKit/. Then the error is thrown when we call Archive.unzip(archive:to:).
+             */
             let sourceURL = binaryProject.binaryURL(for: version, configuration: configuration, swiftVersion: swiftVersion) {
             fileName = sourceURL.lastPathComponent
         } else {
